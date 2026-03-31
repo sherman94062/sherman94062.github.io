@@ -4,57 +4,55 @@ async function fetchProjects() {
     const grid = document.getElementById('project-grid');
     
     try {
-        const response = await fetch(`https://api.github.com/users/${GITHUB_USERNAME}/repos?sort=updated&per_page=100`);
+        // We add a 'timestamp' to the URL to force GitHub to give us fresh data
+        const cacheBuster = new Date().getTime();
+        const url = `https://api.github.com/users/${GITHUB_USERNAME}/repos?sort=created&per_page=100&t=${cacheBuster}`;
+        
+        const response = await fetch(url);
         
         if (!response.ok) {
-            if (response.status === 403) {
-                grid.innerHTML = "<p>GitHub Rate Limit reached. Please wait a few minutes and refresh.</p>";
-            } else {
-                grid.innerHTML = `<p>Error: ${response.statusText}</p>`;
-            }
+            grid.innerHTML = `<p>GitHub API Status: ${response.status}. Please try again in a moment.</p>`;
             return;
         }
 
         const repos = await response.json();
-        grid.innerHTML = ''; // Clear the "Looking for repos" message
+        grid.innerHTML = ''; 
 
-        if (repos.length === 0) {
-            grid.innerHTML = "<p>No public repositories found for this user.</p>";
+        // Filter out your profile site so it doesn't clutter the AI project list
+        const filteredRepos = repos.filter(repo => 
+            repo.name.toLowerCase() !== `${GITHUB_USERNAME}.github.io`.toLowerCase() && 
+            !repo.fork &&
+            repo.private === false
+        );
+
+        if (filteredRepos.length === 0) {
+            grid.innerHTML = "<p>Connected! No other public AI repos detected yet.</p>";
             return;
         }
 
-        repos.forEach(repo => {
-            // 1. Skip the profile README
-            if (repo.name.toLowerCase() === GITHUB_USERNAME.toLowerCase()) return;
-
-            // 2. Safely handle topics (prevents the crash)
-            const topics = repo.topics || []; 
-            
-            // 3. Create the card
+        filteredRepos.forEach(repo => {
             const card = document.createElement('div');
             card.className = 'project-card';
             
-            // Clean up the name (e.g., "Castellan-AI" becomes "Castellan Ai")
-            const cleanName = repo.name.replace(/[-_]/g, ' ');
+            // Clean up names like 'sqlmesh-ai' to 'SQLMesh AI'
+            const cleanName = repo.name.replace(/-/g, ' ').toUpperCase();
 
             card.innerHTML = `
-                <h3 style="text-transform: capitalize;">${cleanName}</h3>
-                <p>${repo.description || 'System architecture and AI infrastructure development.'}</p>
+                <h3>${cleanName}</h3>
+                <p>${repo.description || 'AI research and agentic infrastructure development.'}</p>
                 <div class="tags">
-                    ${topics.length > 0 
-                        ? topics.map(t => `<span>#${t}</span>`).join('') 
-                        : '<span>#AI-Engineering</span>'}
+                    ${(repo.topics && repo.topics.length > 0) 
+                        ? repo.topics.map(t => `<span>#${t}</span>`).join('') 
+                        : '<span>#AI</span><span>#Python</span>'}
                 </div>
-                <a href="${repo.html_url}" target="_blank">View Source →</a>
+                <a href="${repo.html_url}" target="_blank">Explore Code →</a>
             `;
             grid.appendChild(card);
         });
 
     } catch (error) {
-        console.error("Critical Script Error:", error);
-        grid.innerHTML = `<p>Something went wrong: ${error.message}</p>`;
+        grid.innerHTML = `<p>Script Error: ${error.message}</p>`;
     }
 }
 
-// Run when the page is ready
 window.addEventListener('DOMContentLoaded', fetchProjects);
