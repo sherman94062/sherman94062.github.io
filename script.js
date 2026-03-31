@@ -7,19 +7,16 @@ async function fetchProjects() {
     grid.innerHTML = ''; 
 
     repos.forEach(repo => {
-        // Only show repos tagged with 'ai' or 'portfolio'
-        if (repo.topics.includes('ai')) { 
-            const card = document.createElement('div');
-            card.className = 'project-card';
-            card.innerHTML = `
-                <h3>${repo.name.replace(/-/g, ' ')}</h3>
-                <p>${repo.description || 'No description provided.'}</p>
-                <div class="tags">${repo.topics.map(t => `<span>#${t}</span>`).join(' ')}</div>
-                <a href="${repo.html_url}" target="_blank">View Source →</a>
-            `;
-            grid.appendChild(card);
-        }
-    });
+    const card = document.createElement('div');
+    card.className = 'project-card';
+    card.innerHTML = `
+        <h3>${repo.name.replace(/-/g, ' ')}</h3>
+        <p>${repo.description || 'No description provided.'}</p>
+        <div class="tags">${repo.topics.length ? repo.topics.map(t => `<span>#${t}</span>`).join(' ') : '<span>#general</span>'}</div>
+        <a href="${repo.html_url}" target="_blank">View Source →</a>
+    `;
+    grid.appendChild(card);    
+  });
 }
 
 fetchProjects();
