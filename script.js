@@ -1,58 +1,58 @@
-const GITHUB_USERNAME = 'sherman94062'; 
+const GITHUB_USERNAME = 'sherman94062';
 
 async function fetchProjects() {
     const grid = document.getElementById('project-grid');
-    
+    if (!grid) return;
+
     try {
-        // We add a 'timestamp' to the URL to force GitHub to give us fresh data
-        const cacheBuster = new Date().getTime();
-        const url = `https://api.github.com/users/${GITHUB_USERNAME}/repos?sort=created&per_page=100&t=${cacheBuster}`;
-        
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-            grid.innerHTML = `<p>GitHub API Status: ${response.status}. Please try again in a moment.</p>`;
-            return;
-        }
-
+        const response = await fetch(`https://api.github.com/users/${GITHUB_USERNAME}/repos?sort=updated&per_page=100`);
         const repos = await response.json();
-        grid.innerHTML = ''; 
 
-        // Filter out your profile site so it doesn't clutter the AI project list
-        const filteredRepos = repos.filter(repo => 
-            repo.name.toLowerCase() !== `${GITHUB_USERNAME}.github.io`.toLowerCase() && 
-            !repo.fork &&
-            repo.private === false
-        );
+        // 1. CLEAR THE LOADING MESSAGE
+        grid.innerHTML = '';
 
-        if (filteredRepos.length === 0) {
-            grid.innerHTML = "<p>Connected! No other public AI repos detected yet.</p>";
+        // 2. CHECK IF REPOS EXIST
+        if (!Array.isArray(repos) || repos.length === 0) {
+            grid.innerHTML = "<p>No public repos found. Check if they are 'Public' in GitHub Settings.</p>";
             return;
         }
 
-        filteredRepos.forEach(repo => {
-            const card = document.createElement('div');
-            card.className = 'project-card';
-            
-            // Clean up names like 'sqlmesh-ai' to 'SQLMesh AI'
-            const cleanName = repo.name.replace(/-/g, ' ').toUpperCase();
+        // 3. LOOP THROUGH REPOS
+        repos.forEach(repo => {
+            try {
+                // Skip the portfolio site itself
+                if (repo.name.includes('github.io')) return;
 
-            card.innerHTML = `
-                <h3>${cleanName}</h3>
-                <p>${repo.description || 'AI research and agentic infrastructure development.'}</p>
-                <div class="tags">
-                    ${(repo.topics && repo.topics.length > 0) 
-                        ? repo.topics.map(t => `<span>#${t}</span>`).join('') 
-                        : '<span>#AI</span><span>#Python</span>'}
-                </div>
-                <a href="${repo.html_url}" target="_blank">Explore Code →</a>
-            `;
-            grid.appendChild(card);
+                const card = document.createElement('div');
+                card.className = 'project-card';
+                
+                // Safely handle description and topics
+                const desc = repo.description || "AI Engineering and Infrastructure project.";
+                const topics = Array.isArray(repo.topics) ? repo.topics : [];
+                const tagsHTML = topics.length > 0 
+                    ? topics.map(t => `<span>#${t}</span>`).join(' ') 
+                    : '<span>#AI</span><span>#Python</span>';
+
+                card.innerHTML = `
+                    <h3>${repo.name.replace(/-/g, ' ')}</h3>
+                    <p>${desc}</p>
+                    <div class="tags">${tagsHTML}</div>
+                    <a href="${repo.html_url}" target="_blank">View Repo →</a>
+                `;
+                grid.appendChild(card);
+            } catch (innerError) {
+                console.error("Skipping a repo due to error:", innerError);
+            }
         });
 
     } catch (error) {
-        grid.innerHTML = `<p>Script Error: ${error.message}</p>`;
+        grid.innerHTML = `<p>Connection Error: ${error.message}</p>`;
     }
 }
 
-window.addEventListener('DOMContentLoaded', fetchProjects);
+// Ensure the page is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fetchProjects);
+} else {
+    fetchProjects();
+}
