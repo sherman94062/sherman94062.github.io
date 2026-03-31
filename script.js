@@ -1,116 +1,134 @@
 const GITHUB_USERNAME = 'sherman94062';
 
+// ── Pinned at the top as wider featured cards ────────────────────────────────
+const FEATURED = [
+  'mcp-and-agent-development',
+  'agentkit',
+  'nl-to-sql-agent',
+  'dbt-ai-agent',
+  'sqlmesh-ai',
+];
+
+// ── Older non-AI repos collapsed into an archive by default ─────────────────
+const ARCHIVE = [
+  'pushnami', 'resume_creator', 'my-first-binder', 'Flask-RESTful',
+  'analytics-app', 'linechart', 'gf-services', 'JenkinsHDFSIntegration',
+  'roidnafinal', 'simpleloginwebapp', 'simple-login-web-app',
+  'googlepublicapi', 'labtests', 'subsetproblem', 'fizzbuzz',
+  'JavaScriptTheGoodParts', 'warp-challenge', 'fastapi',
+  'langgraph-agent', 'job-search-ui', 'codex-projects',
+];
+
 // ── Category definitions ─────────────────────────────────────────────────────
-// Repos are matched against these keyword lists (name + description, lowercased).
-// First match wins. Order = display priority.
 const CATEGORIES = [
   {
     id: 'ai-agents',
-    label: '🤖 AI Agents',
+    label: 'AI Agents',
+    color: '#22d3ee',
     keywords: ['agent', 'multi-agent', 'agentic', 'agentops', 'agentkit',
                'decision-forge', 'owasp', 'web-research', 'job-search-agent',
-               'flight-scraper', 'mmlu'],
+               'flight-scraper', 'mmlu', 'temporal', 'claude-agent',
+               'minimal-ai', 'multi-agent-cli'],
   },
   {
     id: 'data-engineering',
-    label: '🗄️ Data Engineering',
+    label: 'Data Eng',
+    color: '#a78bfa',
     keywords: ['dbt', 'databricks', 'spark', 'delta', 'sql', 'postgres',
                'clickhouse', 'sqlmesh', 'semantic', 'pipeline', 'medallion',
-               'tpc-h', 'nl-to-sql'],
+               'tpc-h', 'nl-to-sql', 'etl'],
   },
   {
     id: 'llm-tooling',
-    label: '🔧 LLM Tooling',
-    keywords: ['llm', 'claude', 'openai', 'gemini', 'benchmark', 'eval',
+    label: 'LLM Tooling',
+    color: '#34d399',
+    keywords: ['llm', 'openai', 'gemini', 'benchmark', 'eval',
                'langchain', 'langgraph', 'mcp', 'prompt'],
   },
   {
     id: 'governance',
-    label: '🛡️ AI Governance',
+    label: 'Governance',
+    color: '#fb923c',
     keywords: ['castellan', 'governance', 'audit', 'compliance', 'seneschal',
-               'lawclaw', 'security', 'rampart'],
-  },
-  {
-    id: 'healthcare',
-    label: '🏥 Healthcare AI',
-    keywords: ['genomai', 'genomic', 'clinical', 'icu', 'healthcare', 'medical'],
+               'lawclaw', 'security', 'rampart', 'evasion', 'vulnerable'],
   },
 ];
-const CATEGORY_OTHER = { id: 'other', label: '📁 Other Projects' };
+const CATEGORY_OTHER = { id: 'other', label: 'Other', color: '#64748b' };
 
-// Repos to always skip
 const SKIP = ['github.io'];
 
-// Language badge colors
 const LANG_COLORS = {
-  Python: '#3572A5', TypeScript: '#3178c6', JavaScript: '#f1e05a',
-  HTML: '#e34c26', Shell: '#89e051', Go: '#00ADD8', Rust: '#dea584',
+  Python: '#3b82f6', TypeScript: '#818cf8', JavaScript: '#eab308',
+  HTML: '#ef4444', Shell: '#22c55e', Go: '#06b6d4', Ruby: '#ec4899',
 };
 
-// ── Categorise a single repo ─────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function categorise(repo) {
   const haystack = `${repo.name} ${repo.description || ''}`.toLowerCase();
   for (const cat of CATEGORIES) {
-    if (cat.keywords.some(kw => haystack.includes(kw))) return cat.id;
+    if (cat.keywords.some(kw => haystack.includes(kw))) return cat;
   }
-  return CATEGORY_OTHER.id;
+  return CATEGORY_OTHER;
 }
 
-// ── Build one card element ───────────────────────────────────────────────────
-function buildCard(repo) {
-  const desc = repo.description || 'AI Engineering and Infrastructure project.';
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+// ── Card builder ─────────────────────────────────────────────────────────────
+function buildCard(repo, featured = false) {
+  const cat = categorise(repo);
+  const desc = repo.description || 'AI engineering project.';
   const topics = Array.isArray(repo.topics) ? repo.topics : [];
   const tagsHTML = topics.length > 0
-    ? topics.map(t => `<span class="tag">#${t}</span>`).join('')
-    : '<span class="tag">#AI</span><span class="tag">#Python</span>';
-
-  const updated = new Date(repo.updated_at);
-  const updatedStr = updated.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-
+    ? topics.slice(0, 5).map(t => `<span class="tag">#${t}</span>`).join('')
+    : '';
+  const langColor = LANG_COLORS[repo.language] || '#64748b';
   const langBadge = repo.language
-    ? `<span class="lang-badge" style="--lang-color:${LANG_COLORS[repo.language] || '#888'}">${repo.language}</span>`
+    ? `<span class="lang-badge" style="--lc:${langColor}">${repo.language}</span>`
     : '';
 
   const card = document.createElement('div');
-  card.className = 'project-card';
-  card.dataset.category = categorise(repo);
+  card.className = 'project-card' + (featured ? ' featured-card' : '');
+  card.dataset.category = cat.id;
 
   card.innerHTML = `
-    <div class="card-header">
-      <h3>${repo.name.replace(/-/g, ' ')}</h3>
+    <div class="card-top">
+      <span class="cat-chip" style="--cc:${cat.color}">${cat.label}</span>
       ${langBadge}
     </div>
+    <h3>${repo.name.replace(/-/g, ' ')}</h3>
     <p>${desc}</p>
-    <div class="tags">${tagsHTML}</div>
+    ${tagsHTML ? `<div class="tags">${tagsHTML}</div>` : ''}
     <div class="card-footer">
-      <span class="updated">Updated ${updatedStr}</span>
-      <a href="${repo.html_url}" target="_blank">View Repo →</a>
+      <span class="updated">↻ ${fmtDate(repo.updated_at)}</span>
+      <a href="${repo.html_url}" target="_blank">View on GitHub →</a>
     </div>
   `;
   return card;
 }
 
-// ── Render filter bar ────────────────────────────────────────────────────────
-function buildFilterBar(presentCategoryIds) {
+// ── Filter bar ───────────────────────────────────────────────────────────────
+function buildFilterBar(presentIds) {
   const bar = document.getElementById('filter-bar');
   if (!bar) return;
+  bar.innerHTML = '';
 
-  const allCats = [...CATEGORIES, CATEGORY_OTHER].filter(c => presentCategoryIds.has(c.id));
+  const allCats = [{ id: 'all', label: 'All' }, ...CATEGORIES, CATEGORY_OTHER]
+    .filter(c => c.id === 'all' || presentIds.has(c.id));
 
-  // "All" button
-  const allBtn = document.createElement('button');
-  allBtn.className = 'filter-btn active';
-  allBtn.dataset.filter = 'all';
-  allBtn.textContent = 'All Projects';
-  bar.appendChild(allBtn);
-
-  allCats.forEach(cat => {
+  allCats.forEach((cat, i) => {
     const btn = document.createElement('button');
-    btn.className = 'filter-btn';
+    btn.className = 'filter-btn' + (i === 0 ? ' active' : '');
     btn.dataset.filter = cat.id;
-    btn.textContent = cat.label;
+    btn.textContent = cat.id === 'all' ? `All (${[...presentIds].reduce((s,_)=>s,0)})` : cat.label;
     bar.appendChild(btn);
   });
+
+  // Set correct All count
+  const allBtn = bar.querySelector('[data-filter="all"]');
+  const total = document.querySelectorAll('.project-card:not(.archive-card)').length;
+  if (allBtn) allBtn.textContent = `All (${total})`;
 
   bar.addEventListener('click', e => {
     const btn = e.target.closest('.filter-btn');
@@ -118,80 +136,110 @@ function buildFilterBar(presentCategoryIds) {
     bar.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const filter = btn.dataset.filter;
-    document.querySelectorAll('.project-card').forEach(card => {
+
+    // Filter featured section
+    document.querySelectorAll('#featured-grid .project-card').forEach(card => {
       card.style.display = (filter === 'all' || card.dataset.category === filter) ? '' : 'none';
     });
-    // Show/hide section headers
-    document.querySelectorAll('.section-heading').forEach(h => {
-      if (filter === 'all') {
-        h.style.display = '';
-      } else {
-        h.style.display = h.dataset.category === filter ? '' : 'none';
-      }
+    const featSection = document.getElementById('featured-section');
+    if (featSection) {
+      const anyVisible = [...featSection.querySelectorAll('.project-card')]
+        .some(c => c.style.display !== 'none');
+      featSection.style.display = anyVisible ? '' : 'none';
+    }
+
+    // Filter main grid
+    document.querySelectorAll('#main-grid .project-card').forEach(card => {
+      card.style.display = (filter === 'all' || card.dataset.category === filter) ? '' : 'none';
     });
   });
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 async function fetchProjects() {
-  const grid = document.getElementById('project-grid');
-  if (!grid) return;
+  const root = document.getElementById('project-grid');
+  if (!root) return;
 
   try {
-    const response = await fetch(
+    const res = await fetch(
       `https://api.github.com/users/${GITHUB_USERNAME}/repos?sort=updated&per_page=100`
     );
-    const repos = await response.json();
-
-    grid.innerHTML = '';
+    const repos = await res.json();
+    root.innerHTML = '';
 
     if (!Array.isArray(repos) || repos.length === 0) {
-      grid.innerHTML = '<p>No public repos found.</p>';
+      root.innerHTML = '<p>No public repos found.</p>';
       return;
     }
 
-    // Filter & categorise
-    const visible = repos
-      .filter(r => !SKIP.some(s => r.name.includes(s)))
-      .map(r => ({ ...r, _cat: categorise(r) }));
+    const visible = repos.filter(r => !SKIP.some(s => r.name.includes(s)));
+    const featured = visible.filter(r => FEATURED.includes(r.name))
+      // preserve FEATURED order
+      .sort((a, b) => FEATURED.indexOf(a.name) - FEATURED.indexOf(b.name));
+    const archive  = visible.filter(r => ARCHIVE.includes(r.name));
+    const main     = visible.filter(r => !FEATURED.includes(r.name) && !ARCHIVE.includes(r.name));
 
-    // Group by category order
-    const allCatIds = [...CATEGORIES.map(c => c.id), CATEGORY_OTHER.id];
-    const grouped = {};
-    allCatIds.forEach(id => { grouped[id] = []; });
-    visible.forEach(r => grouped[r._cat].push(r));
+    const presentIds = new Set(main.concat(featured).map(r => categorise(r).id));
 
-    const presentIds = new Set();
+    // ── Featured section ────────────────────────────────────────────────────
+    if (featured.length > 0) {
+      const sec = document.createElement('div');
+      sec.id = 'featured-section';
+      sec.innerHTML = '<h2 class="section-label">⭐ Featured</h2>';
+      const grid = document.createElement('div');
+      grid.id = 'featured-grid';
+      grid.className = 'featured-grid';
+      featured.forEach(r => grid.appendChild(buildCard(r, true)));
+      sec.appendChild(grid);
+      root.appendChild(sec);
+    }
 
-    allCatIds.forEach(catId => {
-      const repos = grouped[catId];
-      if (repos.length === 0) return;
-      presentIds.add(catId);
+    // ── Main grid ───────────────────────────────────────────────────────────
+    const mainSec = document.createElement('div');
+    mainSec.innerHTML = '<h2 class="section-label">🔬 All Projects</h2>';
+    const mainGrid = document.createElement('div');
+    mainGrid.id = 'main-grid';
+    mainGrid.className = 'main-grid';
+    main.forEach(r => mainGrid.appendChild(buildCard(r)));
+    mainSec.appendChild(mainGrid);
+    root.appendChild(mainSec);
 
-      const cat = [...CATEGORIES, CATEGORY_OTHER].find(c => c.id === catId);
+    // ── Archive section ─────────────────────────────────────────────────────
+    if (archive.length > 0) {
+      const archSec = document.createElement('div');
+      archSec.id = 'archive-section';
 
-      // Section heading
-      const heading = document.createElement('h2');
-      heading.className = 'section-heading';
-      heading.dataset.category = catId;
-      heading.textContent = cat.label;
-      grid.appendChild(heading);
+      const toggle = document.createElement('button');
+      toggle.className = 'archive-toggle';
+      toggle.textContent = `📦 Show archive (${archive.length} older projects)`;
+      archSec.appendChild(toggle);
 
-      // Cards
-      const section = document.createElement('div');
-      section.className = 'section-grid';
-      repos.forEach(r => section.appendChild(buildCard(r)));
-      grid.appendChild(section);
-    });
+      const archGrid = document.createElement('div');
+      archGrid.className = 'main-grid archive-grid hidden';
+      archive.forEach(r => {
+        const card = buildCard(r);
+        card.classList.add('archive-card');
+        archGrid.appendChild(card);
+      });
+      archSec.appendChild(archGrid);
 
+      toggle.addEventListener('click', () => {
+        const hidden = archGrid.classList.toggle('hidden');
+        toggle.textContent = hidden
+          ? `📦 Show archive (${archive.length} older projects)`
+          : `📦 Hide archive`;
+      });
+
+      root.appendChild(archSec);
+    }
+
+    // ── Filter bar + count ──────────────────────────────────────────────────
     buildFilterBar(presentIds);
-
-    // Project count
     const countEl = document.getElementById('project-count');
-    if (countEl) countEl.textContent = `${visible.length} projects`;
+    if (countEl) countEl.textContent = `${main.length + featured.length} projects`;
 
-  } catch (error) {
-    grid.innerHTML = `<p>Connection Error: ${error.message}</p>`;
+  } catch (err) {
+    root.innerHTML = `<p>Error: ${err.message}</p>`;
   }
 }
 
