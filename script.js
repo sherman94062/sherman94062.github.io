@@ -81,7 +81,7 @@ function buildCard(repo, featured = false) {
   const desc = repo.description || 'AI engineering project.';
   const topics = Array.isArray(repo.topics) ? repo.topics : [];
   const tagsHTML = topics.length > 0
-    ? topics.slice(0, 5).map(t => `<span class="tag">#${t}</span>`).join('')
+    ? topics.slice(0, 6).map(t => `<span class="tag">#${t}</span>`).join('')
     : '';
   const langColor = LANG_COLORS[repo.language] || '#64748b';
   const langBadge = repo.language
@@ -101,8 +101,8 @@ function buildCard(repo, featured = false) {
     <p>${desc}</p>
     ${tagsHTML ? `<div class="tags">${tagsHTML}</div>` : ''}
     <div class="card-footer">
-      <span class="updated">↻ ${fmtDate(repo.updated_at)}</span>
-      <a href="${repo.html_url}" target="_blank">View on GitHub →</a>
+      <span class="updated">&#8635; ${fmtDate(repo.updated_at)}</span>
+      <a href="${repo.html_url}" target="_blank">View on GitHub &rarr;</a>
     </div>
   `;
   return card;
@@ -121,14 +121,9 @@ function buildFilterBar(presentIds) {
     const btn = document.createElement('button');
     btn.className = 'filter-btn' + (i === 0 ? ' active' : '');
     btn.dataset.filter = cat.id;
-    btn.textContent = cat.id === 'all' ? `All (${[...presentIds].reduce((s,_)=>s,0)})` : cat.label;
+    btn.textContent = cat.label;
     bar.appendChild(btn);
   });
-
-  // Set correct All count
-  const allBtn = bar.querySelector('[data-filter="all"]');
-  const total = document.querySelectorAll('.project-card:not(.archive-card)').length;
-  if (allBtn) allBtn.textContent = `All (${total})`;
 
   bar.addEventListener('click', e => {
     const btn = e.target.closest('.filter-btn');
@@ -137,7 +132,6 @@ function buildFilterBar(presentIds) {
     btn.classList.add('active');
     const filter = btn.dataset.filter;
 
-    // Filter featured section
     document.querySelectorAll('#featured-grid .project-card').forEach(card => {
       card.style.display = (filter === 'all' || card.dataset.category === filter) ? '' : 'none';
     });
@@ -148,7 +142,6 @@ function buildFilterBar(presentIds) {
       featSection.style.display = anyVisible ? '' : 'none';
     }
 
-    // Filter main grid
     document.querySelectorAll('#main-grid .project-card').forEach(card => {
       card.style.display = (filter === 'all' || card.dataset.category === filter) ? '' : 'none';
     });
@@ -161,8 +154,10 @@ async function fetchProjects() {
   if (!root) return;
 
   try {
+    // The mercy-preview Accept header is required for GitHub to return topics[]
     const res = await fetch(
-      `https://api.github.com/users/${GITHUB_USERNAME}/repos?sort=updated&per_page=100`
+      `https://api.github.com/users/${GITHUB_USERNAME}/repos?sort=updated&per_page=100`,
+      { headers: { 'Accept': 'application/vnd.github.mercy-preview+json' } }
     );
     const repos = await res.json();
     root.innerHTML = '';
@@ -174,7 +169,6 @@ async function fetchProjects() {
 
     const visible = repos.filter(r => !SKIP.some(s => r.name.includes(s)));
     const featured = visible.filter(r => FEATURED.includes(r.name))
-      // preserve FEATURED order
       .sort((a, b) => FEATURED.indexOf(a.name) - FEATURED.indexOf(b.name));
     const archive  = visible.filter(r => ARCHIVE.includes(r.name));
     const main     = visible.filter(r => !FEATURED.includes(r.name) && !ARCHIVE.includes(r.name));
@@ -185,7 +179,7 @@ async function fetchProjects() {
     if (featured.length > 0) {
       const sec = document.createElement('div');
       sec.id = 'featured-section';
-      sec.innerHTML = '<h2 class="section-label">⭐ Featured</h2>';
+      sec.innerHTML = '<h2 class="section-label">Featured</h2>';
       const grid = document.createElement('div');
       grid.id = 'featured-grid';
       grid.className = 'featured-grid';
@@ -196,7 +190,7 @@ async function fetchProjects() {
 
     // ── Main grid ───────────────────────────────────────────────────────────
     const mainSec = document.createElement('div');
-    mainSec.innerHTML = '<h2 class="section-label">🔬 All Projects</h2>';
+    mainSec.innerHTML = '<h2 class="section-label">All Projects</h2>';
     const mainGrid = document.createElement('div');
     mainGrid.id = 'main-grid';
     mainGrid.className = 'main-grid';
@@ -211,7 +205,7 @@ async function fetchProjects() {
 
       const toggle = document.createElement('button');
       toggle.className = 'archive-toggle';
-      toggle.textContent = `📦 Show archive (${archive.length} older projects)`;
+      toggle.textContent = `Show archive (${archive.length} older projects)`;
       archSec.appendChild(toggle);
 
       const archGrid = document.createElement('div');
@@ -226,8 +220,8 @@ async function fetchProjects() {
       toggle.addEventListener('click', () => {
         const hidden = archGrid.classList.toggle('hidden');
         toggle.textContent = hidden
-          ? `📦 Show archive (${archive.length} older projects)`
-          : `📦 Hide archive`;
+          ? `Show archive (${archive.length} older projects)`
+          : `Hide archive`;
       });
 
       root.appendChild(archSec);
