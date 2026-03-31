@@ -3,18 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arthur Mike Sherman | AI Engineering Lab</title>
+    <title>Mike Sherman | AI Engineering Portfolio</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
-        <h1>Arthur Sherman</h1>
-        <p>AI Governance • Agentic Infrastructure • SDLC Automation</p>
+        <div>
+            <h1>Mike Sherman</h1>
+            <p>AI Agents &bull; Data Engineering &bull; AI Governance &bull; Agentic Infrastructure</p>
+        </div>
+        <span id="project-count"></span>
     </header>
 
-    <section id="project-grid">
+    <!-- Filter buttons are injected here by script.js -->
+    <div id="filter-bar"></div>
+
+    <!-- Section headings + card grids are injected here by script.js -->
+    <div id="project-grid">
         <div id="loading">Fetching latest builds from GitHub...</div>
-    </section>
+    </div>
 
     <script src="script.js"></script>
 </body>
