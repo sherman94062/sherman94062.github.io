@@ -1,42 +1,60 @@
 const GITHUB_USERNAME = 'sherman94062'; 
 
 async function fetchProjects() {
-    console.log("Attempting to fetch projects..."); // Check your console (F12) for this
+    const grid = document.getElementById('project-grid');
     
     try {
-        const response = await fetch(`https://api.github.com/users/${GITHUB_USERNAME}/repos?sort=updated`);
-        const repos = await response.json();
+        const response = await fetch(`https://api.github.com/users/${GITHUB_USERNAME}/repos?sort=updated&per_page=100`);
         
-        const grid = document.getElementById('project-grid');
-        
-        if (!grid) {
-            console.error("Could not find the 'project-grid' element in your HTML!");
+        if (!response.ok) {
+            if (response.status === 403) {
+                grid.innerHTML = "<p>GitHub Rate Limit reached. Please wait a few minutes and refresh.</p>";
+            } else {
+                grid.innerHTML = `<p>Error: ${response.statusText}</p>`;
+            }
             return;
         }
 
-        grid.innerHTML = ''; 
+        const repos = await response.json();
+        grid.innerHTML = ''; // Clear the "Looking for repos" message
+
+        if (repos.length === 0) {
+            grid.innerHTML = "<p>No public repositories found for this user.</p>";
+            return;
+        }
 
         repos.forEach(repo => {
-            // Filter out the profile README or forks if you want
-            if (repo.name === GITHUB_USERNAME || repo.fork) return;
+            // 1. Skip the profile README
+            if (repo.name.toLowerCase() === GITHUB_USERNAME.toLowerCase()) return;
 
+            // 2. Safely handle topics (prevents the crash)
+            const topics = repo.topics || []; 
+            
+            // 3. Create the card
             const card = document.createElement('div');
             card.className = 'project-card';
+            
+            // Clean up the name (e.g., "Castellan-AI" becomes "Castellan Ai")
+            const cleanName = repo.name.replace(/[-_]/g, ' ');
+
             card.innerHTML = `
-                <h3>${repo.name.replace(/-/g, ' ')}</h3>
-                <p>${repo.description || 'AI Engineering & Infrastructure project.'}</p>
-                <div class="tags">${repo.topics.length ? repo.topics.map(t => `<span>#${t}</span>`).join(' ') : '<span>#general</span>'}</div>
+                <h3 style="text-transform: capitalize;">${cleanName}</h3>
+                <p>${repo.description || 'System architecture and AI infrastructure development.'}</p>
+                <div class="tags">
+                    ${topics.length > 0 
+                        ? topics.map(t => `<span>#${t}</span>`).join('') 
+                        : '<span>#AI-Engineering</span>'}
+                </div>
                 <a href="${repo.html_url}" target="_blank">View Source →</a>
             `;
             grid.appendChild(card);
         });
-        
-        console.log(`Successfully injected ${repos.length} repos.`);
+
     } catch (error) {
-        console.error("Error fetching GitHub data:", error);
+        console.error("Critical Script Error:", error);
+        grid.innerHTML = `<p>Something went wrong: ${error.message}</p>`;
     }
 }
 
-// THIS IS THE KEY CHANGE:
-// Waits for the HTML to be fully loaded before running the function
+// Run when the page is ready
 window.addEventListener('DOMContentLoaded', fetchProjects);
