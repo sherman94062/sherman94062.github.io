@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Argus — Schema Drift Demo</title>
+<style>
+  :root {
+    --bg:#ffffff;--bg2:#f6f5f0;--bg3:#efefea;
+    --border:rgba(0,0,0,0.12);--border2:rgba(0,0,0,0.22);
+    --text:#1a1a18;--text2:#5a5a56;--text3:#8a8a84;
+    --mono:'SFMono-Regular','Consolas','Liberation Mono',monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+    --radius:10px;--radius-sm:6px;
+    --green-bg:#eaf3de;--green-text:#27500a;--green-border:#3b6d11;
+    --red-bg:#fcebeb;--red-text:#791f1f;--red-border:#a32d2d;
+    --blue-bg:#e6f1fb;--blue-text:#0c447c;--blue-border:#185fa5;
+    --amber-bg:#faeeda;--amber-text:#633806;--amber-border:#854f0b;
+    --gray-bg:#f1efe8;--gray-text:#444441;--gray-border:#5f5e5a;
+  }
+  @media(prefers-color-scheme:dark){
+    :root{
+      --bg:#1e1e1c;--bg2:#272725;--bg3:#2e2e2c;
+      --border:rgba(255,255,255,0.10);--border2:rgba(255,255,255,0.20);
+      --text:#e8e6de;--text2:#a8a69e;--text3:#686660;
+      --green-bg:#173404;--green-text:#c0dd97;--green-border:#3b6d11;
+      --red-bg:#501313;--red-text:#f7c1c1;--red-border:#a32d2d;
+      --blue-bg:#042c53;--blue-text:#b5d4f4;--blue-border:#185fa5;
+      --amber-bg:#412402;--amber-text:#fac775;--amber-border:#854f0b;
+      --gray-bg:#2c2c2a;--gray-text:#d3d1c7;--gray-border:#5f5e5a;
+    }
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;padding:2rem 1rem 3rem}
+  .page{max-width:860px;margin:0 auto}
+  .header{display:flex;align-items:center;gap:14px;margin-bottom:2rem;padding-bottom:1.25rem;border-bottom:0.5px solid var(--border)}
+  .logo{width:40px;height:40px;background:var(--text);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .logo svg{width:22px;height:22px;fill:var(--bg)}
+  .header-text h1{font-size:18px;font-weight:600;color:var(--text)}
+  .header-text p{font-size:13px;color:var(--text2);margin-top:2px}
+  .header-links{margin-left:auto;display:flex;gap:8px;flex-shrink:0}
+  .pill-link{font-size:12px;font-weight:500;padding:5px 12px;border-radius:20px;border:0.5px solid var(--border2);color:var(--text2);text-decoration:none;background:var(--bg2);white-space:nowrap}
+  .pill-link:hover{background:var(--bg3);color:var(--text)}
+  .scenario-header{display:flex;align-items:center;gap:10px;margin-bottom:1.5rem}
+  .scenario-badge{font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;padding:4px 11px;border-radius:20px;background:var(--red-bg);color:var(--red-text);border:0.5px solid var(--red-border)}
+  .scenario-title{font-size:22px;font-weight:600}
+  .scenario-desc{font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:1.75rem}
+  .progress-wrap{margin-bottom:1.5rem}
+  .progress-bar{display:flex;gap:4px;margin-bottom:8px}
+  .p-seg{height:3px;flex:1;border-radius:2px;background:var(--border);transition:background .3s,flex .25s}
+  .p-seg.done{background:var(--green-border)}
+  .p-seg.active{background:var(--text);flex:1.5}
+  .progress-labels{display:flex;gap:4px}
+  .p-label{flex:1;font-size:10px;text-align:center;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .2s}
+  .p-label.active{color:var(--text);font-weight:500}
+  .p-label.done{color:var(--green-border)}
+  .step-card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:1rem}
+  .step-top{display:flex;align-items:center;gap:10px;padding:1rem 1.25rem .75rem;border-bottom:0.5px solid var(--border)}
+  .step-badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap}
+  .b-ok{background:var(--green-bg);color:var(--green-text);border:0.5px solid var(--green-border)}
+  .b-err{background:var(--red-bg);color:var(--red-text);border:0.5px solid var(--red-border)}
+  .b-llm{background:var(--blue-bg);color:var(--blue-text);border:0.5px solid var(--blue-border)}
+  .b-warn{background:var(--amber-bg);color:var(--amber-text);border:0.5px solid var(--amber-border)}
+  .b-neutral{background:var(--gray-bg);color:var(--gray-text);border:0.5px solid var(--gray-border)}
+  .step-title{font-size:15px;font-weight:500}
+  .step-body{padding:1rem 1.25rem}
+  .step-desc{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:1rem}
+  .col2{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+  @media(max-width:600px){.col2{grid-template-columns:1fr}}
+  .file-label{font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
+  pre{font-family:var(--mono);font-size:12px;line-height:1.75;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:.75rem 1rem;overflow-x:auto;color:var(--text);white-space:pre}
+  code{font-family:var(--mono);font-size:12px}
+  .hi-red{background:var(--red-bg);color:var(--red-text);border-radius:3px;padding:1px 4px}
+  .hi-green{background:var(--green-bg);color:var(--green-text);border-radius:3px;padding:1px 4px}
+  .hi-blue{background:var(--blue-bg);color:var(--blue-text);border-radius:3px;padding:1px 4px}
+  .del-line{color:var(--red-text);text-decoration:line-through;opacity:.75}
+  .schema-table{border:0.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;font-family:var(--mono);font-size:12px}
+  .schema-row{display:flex;align-items:center;padding:5px 10px;border-bottom:0.5px solid var(--border);color:var(--text2)}
+  .schema-row:last-child{border-bottom:none}
+  .schema-row.dropped{background:var(--red-bg);color:var(--red-text);text-decoration:line-through;opacity:.8}
+  .col-type{margin-left:auto;font-size:11px;color:var(--text3)}
+  .schema-row.dropped .col-type{color:var(--red-text);opacity:.7}
+  .status-pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;padding:5px 12px;border-radius:20px;margin-top:8px}
+  .status-pill.ok{background:var(--green-bg);color:var(--green-text)}
+  .status-pill.fail{background:var(--red-bg);color:var(--red-text)}
+  .dot{width:7px;height:7px;border-radius:50%}
+  .dot.ok{background:var(--green-border)}
+  .dot.fail{background:var(--red-border)}
+  .info-card{background:var(--bg2);border-radius:var(--radius-sm);padding:.75rem 1rem;font-size:12px;color:var(--text2);line-height:1.6}
+  .info-card strong{color:var(--text);font-weight:500}
+  .terminal{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+  .term-bar{background:var(--bg3);padding:7px 12px;display:flex;gap:6px;align-items:center;border-bottom:0.5px solid var(--border)}
+  .term-dot{width:10px;height:10px;border-radius:50%}
+  .term-body{padding:.5rem 0}
+  .log-row{display:flex;gap:10px;padding:3px 12px;font-family:var(--mono);font-size:11.5px;line-height:1.8;border-bottom:0.5px solid var(--border)}
+  .log-row:last-child{border-bottom:none}
+  .log-stage{width:82px;flex-shrink:0;font-weight:600;font-size:11px}
+  .log-stage.detect{color:#ba7517}
+  .log-stage.diagnose{color:#185fa5}
+  .log-stage.fix{color:#185fa5}
+  .log-stage.commit{color:var(--text3)}
+  .log-stage.validate{color:var(--green-border)}
+  .log-stage.close{color:var(--green-border)}
+  .log-msg{color:var(--text2);font-size:11px}
+  .nav{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .nav-btn{font-family:var(--sans);font-size:13px;font-weight:500;padding:8px 18px;cursor:pointer;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);transition:background .15s}
+  .nav-btn:hover:not(:disabled){background:var(--bg2)}
+  .nav-btn:disabled{opacity:.3;cursor:default}
+  .nav-count{font-size:12px;color:var(--text3)}
+  .footer{margin-top:2.5rem;padding-top:1.25rem;border-top:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+  .footer-text{font-size:12px;color:var(--text3)}
+  .footer-link{color:var(--text2);text-decoration:none}
+  .footer-link:hover{color:var(--text)}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="header">
+  <div class="logo">
+    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+  </div>
+  <div class="header-text">
+    <h1>Argus</h1>
+    <p>Self-healing dbt pipeline agent</p>
+  </div>
+  <div class="header-links">
+    <a class="pill-link" href="https://github.com/sherman94062/argus">GitHub</a>
+    <a class="pill-link" href="https://github.com/sherman94062/argus/blob/main/README.md">Docs</a>
+  </div>
+</div>
+
+<div class="scenario-header">
+  <span class="scenario-badge">Demo scenario</span>
+  <span class="scenario-title">Schema drift</span>
+</div>
+<p class="scenario-desc">
+  A column is dropped from the source table. The <code>stg_orders</code> model still references it — dbt fails.
+  Argus detects the failure, calls Claude to diagnose the root cause, patches the SQL,
+  validates with <code>dbt compile</code>, commits the fix, and resolves the incident without human intervention.
+</p>
+
+<div class="progress-wrap">
+  <div class="progress-bar" id="pbar"></div>
+  <div class="progress-labels" id="plabels"></div>
+</div>
+
+<div class="step-card">
+  <div class="step-top" id="step-top"></div>
+  <div class="step-body" id="step-body"></div>
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="btn-prev" onclick="go(-1)">&#8592; Back</button>
+  <span class="nav-count" id="nav-count"></span>
+  <button class="nav-btn" id="btn-next" onclick="go(1)">Next &#8594;</button>
+</div>
+
+<div class="footer">
+  <span class="footer-text">Built with <a class="footer-link" href="https://docs.anthropic.com/">Anthropic Claude</a> &middot; Apache 2.0 license</span>
+  <span class="footer-text"><a class="footer-link" href="https://github.com/sherman94062/argus/blob/main/WALKTHROUGH.md">Full walkthrough &rarr;</a></span>
+</div>
+
+</div>
+<script>
+const SC=[['o_orderkey','VARCHAR'],['o_custkey','INTEGER'],['o_orderstatus','CHAR'],['o_totalprice','DECIMAL'],['o_orderdate','DATE'],['o_orderpriority','VARCHAR'],['o_clerk','VARCHAR'],['o_shippriority','INTEGER'],['discount_code','VARCHAR(10)']];
+function st(drop){return'<div class="schema-table">'+SC.map((r,i)=>{const last=i===SC.length-1;const cls='schema-row'+(last&&drop?' dropped':'');return`<div class="${cls}"><span>${r[0]}</span><span class="col-type">${r[1]}</span></div>`;}).join('')+'</div>';}
+const STEPS=[
+{label:'Baseline',badge:'b-neutral',badgeText:'Clean state',title:'Step 1 — clean baseline',
+desc:'The pipeline starts healthy. <code>tpch.orders</code> includes <code>discount_code</code> and <code>stg_orders.sql</code> selects it directly. All 9 dbt tests pass.',
+body:()=>`<div class="col2"><div><div class="file-label">stg_orders.sql</div><pre>select
+  o_orderkey      as order_id,
+  o_custkey       as customer_id,
+  o_orderstatus   as status,
+  o_totalprice    as total_price,
+  o_orderdate     as order_date,
+  o_orderpriority as priority,
+  o_clerk         as clerk,
+  o_shippriority  as ship_priority,
+  <span class="hi-green">discount_code</span>
+from {{ source('tpch','orders') }}</pre></div><div><div class="file-label">tpch.orders schema</div>${st(false)}<div class="status-pill ok"><span class="dot ok"></span>dbt test — 9/9 pass</div></div></div>`},
+{label:'Inject',badge:'b-err',badgeText:'Failure injected',title:'Step 2 — inject failure',
+desc:'<code>demo/run_demo.sh schema_drift</code> calls <code>inject_failure.py</code>, which executes one line of SQL against the live database. The column is gone — but the model still references it.',
+body:()=>`<div class="col2"><div><div class="file-label">demo/scenarios/schema_drift.sql</div><pre>ALTER TABLE tpch.orders
+  <span class="hi-red">DROP COLUMN IF EXISTS</span>
+  discount_code;</pre><div class="info-card" style="margin-top:.75rem">Executed via <strong>psycopg2</strong> with <code>autocommit=True</code>. The column is permanently removed from the live table.</div></div><div><div class="file-label">tpch.orders schema (after drop)</div>${st(true)}<div class="status-pill fail"><span class="dot fail"></span>Column dropped — model still selects it</div></div></div>`},
+{label:'Detect',badge:'b-warn',badgeText:'FailureEvent created',title:'Step 3 — detect',
+desc:'The orchestrator shells out to <code>dbt test</code> and reads <code>target/run_results.json</code>. <code>detector.py</code> finds the failure and wraps it in a typed <code>FailureEvent</code> dataclass.',
+body:()=>`<div class="col2"><div><div class="file-label">dbt test output</div><pre style="color:var(--red-text)">Failure in test
+not_null_stg_orders_discount_code
+
+  Got 847 results,
+  configured to fail if != 0
+
+<strong>FAIL 847</strong></pre></div><div><div class="file-label">FailureEvent — detector.py output</div><pre>{
+  <span class="hi-blue">"model"</span>: "stg_orders",
+  <span class="hi-blue">"test"</span>:
+    "not_null_stg_orders
+     _discount_code",
+  "message":
+    "Got 847 results...",
+  "timestamp":
+    "2024-04-01T15:42:30",
+  "run_log_path":
+    ".../run_results.json"
+}</pre></div></div>`},
+{label:'Diagnose',badge:'b-llm',badgeText:'Claude called',title:'Step 4 — diagnose',
+desc:'<code>diagnostician.py</code> builds a context payload — the broken SQL, the current source schema (missing the column), and the last 3 git commits — and sends it to Claude. Claude returns a structured JSON hypothesis.',
+body:()=>`<div class="col2"><div><div class="file-label">Context sent to Claude</div><pre style="font-size:11px">Model:   stg_orders
+Test:    not_null_stg_orders
+         _discount_code
+Error:   Got 847 results
+
+[Model SQL]
+select ... discount_code
+from source('tpch','orders')
+
+[Source schema]
+tpch.orders:
+  o_orderkey, o_custkey ...
+  <span class="hi-red">discount_code NOT FOUND</span>
+
+[Recent commits]
+"add discount_code to stg_orders"
+"initial TPC-H models"</pre></div><div><div class="file-label">Hypothesis — Claude's response</div><pre>{
+  "root_cause":
+    "Column 'discount_code'
+    removed from source
+    table tpch.orders",
+  <span class="hi-green">"confidence": 0.91</span>,
+  "suggested_fix":
+    "Remove discount_code
+    from SELECT clause",
+  <span class="hi-green">"fix_type": "sql_patch"</span>
+}</pre><div class="info-card" style="margin-top:.75rem">Confidence <strong>0.91</strong> exceeds threshold <strong>0.7</strong> &rarr; proceed to auto-fix. Below threshold Argus escalates immediately.</div></div></div>`},
+{label:'Fix',badge:'b-llm',badgeText:'SQL patched',title:'Step 5 — fix',
+desc:'<code>fixer.py</code> sends Claude the broken SQL plus the hypothesis and asks for corrected SQL only. The patch is validated with <code>dbt compile</code>, then committed with an <code>[argus]</code> prefix.',
+body:()=>`<div><div class="file-label">stg_orders.sql — diff</div><pre>select
+  o_orderkey      as order_id,
+  o_custkey       as customer_id,
+  o_orderstatus   as status,
+  o_totalprice    as total_price,
+  o_orderdate     as order_date,
+  o_orderpriority as priority,
+  o_clerk         as clerk,
+  o_shippriority  as ship_priority<span class="del-line">,
+  discount_code</span>
+from {{ source('tpch','orders') }}</pre><div class="col2" style="margin-top:.75rem"><div class="info-card"><strong>Compile gate</strong><br><code>dbt compile --select stg_orders</code> runs before any commit. If compile fails, the file is reverted and retry counter increments. On attempt 3, Argus escalates.</div><div class="info-card"><strong>Git commit</strong><br><code>[argus] fix stg_orders: discount_code ref removed (auto)</code><br>The <code>[argus]</code> prefix distinguishes auto-commits from human commits.</div></div></div>`},
+{label:'Validate',badge:'b-ok',badgeText:'Tests pass',title:'Step 6 — validate',
+desc:'The orchestrator re-runs <code>dbt test --select stg_orders</code> on the patched model. All remaining tests pass. Argus closes the incident.',
+body:()=>`<div class="col2"><div><div class="file-label">dbt test output (after patch)</div><pre style="color:var(--green-text)">Running 2 tests on stg_orders...
+
+PASS unique_stg_orders_order_id
+PASS not_null_stg_orders_status
+
+Finished running 2 tests.
+
+<strong>All 2 tests passed.</strong></pre></div><div><div class="file-label">Outcome</div><div style="background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:var(--radius-sm);padding:1rem;margin-bottom:.75rem"><div style="font-size:14px;font-weight:500;color:var(--green-text)">Resolved — no human required</div><div style="font-size:12px;color:var(--green-text);margin-top:4px;opacity:.8">1 fix attempt / 3 max &middot; ~31s</div></div><div class="info-card">The <code>discount_code</code> not-null test is no longer present — the column was removed from the model, so its <code>schema.yml</code> test definition no longer applies.</div></div></div>`},
+{label:'Close',badge:'b-ok',badgeText:'Complete',title:'Step 7 — close',
+desc:'The full verbose terminal output for the schema drift scenario — the entire agent reasoning chain in one view.',
+body:()=>`<div><div class="file-label">Terminal output — python orchestrator.py --verbose</div><div class="terminal"><div class="term-bar"><div class="term-dot" style="background:#ed6a5a"></div><div class="term-dot" style="background:#f5a623"></div><div class="term-dot" style="background:#79c642"></div></div><div class="term-body">${[['detect','[DETECT]','stg_orders — not_null_stg_orders_discount_code — Got 847 results...'],['diagnose','[DIAGNOSE]','root_cause: column removed from source (confidence: 0.91)'],['fix','[FIX]','attempt 1/3 — patching stg_orders.sql'],['fix','[FIX]','Claude returned patched SQL — running dbt compile...'],['commit','[COMMIT]','a3f9c12 — [argus] fix stg_orders: discount_code ref removed (auto)'],['validate','[VALIDATE]','running dbt test...'],['validate','[VALIDATE]','dbt test &#8594; PASS'],['close','[CLOSE]','resolved in 31s — no human required']].map(([c,s,m])=>`<div class="log-row"><span class="log-stage ${c}">${s}</span><span class="log-msg">${m}</span></div>`).join('')}</div></div><div class="col2" style="margin-top:.75rem"><div class="info-card"><strong>Artifacts written</strong><br><code>models/staging/stg_orders.sql</code> patched<br><code>git log --grep="[argus]"</code> shows 1 new commit</div><div class="info-card"><strong>Reset</strong><br><code>git checkout dbt_project/</code><br>Reverts the patch so the demo can be run again cleanly.</div></div></div>`}
+];
+let cur=0;
+function render(){
+  const s=STEPS[cur],n=STEPS.length;
+  document.getElementById('pbar').innerHTML=STEPS.map((_,i)=>`<div class="p-seg ${i<cur?'done':i===cur?'active':''}"></div>`).join('');
+  document.getElementById('plabels').innerHTML=STEPS.map((st,i)=>`<div class="p-label ${i<cur?'done':i===cur?'active':''}">${st.label}</div>`).join('');
+  document.getElementById('step-top').innerHTML=`<span class="step-badge ${s.badge}">${s.badgeText}</span><span class="step-title">${s.title}</span>`;
+  document.getElementById('step-body').innerHTML=`<p class="step-desc">${s.desc}</p>${s.body()}`;
+  document.getElementById('nav-count').textContent=`${cur+1} of ${n}`;
+  document.getElementById('btn-prev').disabled=cur===0;
+  document.getElementById('btn-next').disabled=cur===n-1;
+}
+function go(d){cur=Math.max(0,Math.min(STEPS.length-1,cur+d));render();window.scrollTo({top:0,behavior:'smooth'});}
+render();
+</script>
+</body>
+</html>
