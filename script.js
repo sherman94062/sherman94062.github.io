@@ -4,6 +4,7 @@ const GITHUB_USERNAME = 'sherman94062';
 const FEATURED = [
   'mcp-and-agent-development',
   'agentkit',
+  'argus',
   'nl-to-sql-agent',
   'dbt-ai-agent',
   'sqlmesh-ai',
