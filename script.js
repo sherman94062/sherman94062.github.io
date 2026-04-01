@@ -10,6 +10,11 @@ const FEATURED = [
   'sqlmesh-ai',
 ];
 
+// ── Live demo URLs for specific repos ────────────────────────────────────────
+const DEMOS = {
+  'argus': 'https://sherman94062.github.io/schema_drift_demo.html',
+};
+
 // ── Older non-AI repos collapsed into an archive by default ─────────────────
 const ARCHIVE = [
   'pushnami', 'resume_creator', 'my-first-binder', 'Flask-RESTful',
@@ -89,6 +94,11 @@ function buildCard(repo, featured = false) {
     ? `<span class="lang-badge" style="--lc:${langColor}">${repo.language}</span>`
     : '';
 
+  const demoUrl = DEMOS[repo.name];
+  const demoLink = demoUrl
+    ? `<a class="demo-link" href="${demoUrl}" target="_blank">&#9654; Live demo</a>`
+    : '';
+
   const card = document.createElement('div');
   card.className = 'project-card' + (featured ? ' featured-card' : '');
   card.dataset.category = cat.id;
@@ -103,7 +113,10 @@ function buildCard(repo, featured = false) {
     ${tagsHTML ? `<div class="tags">${tagsHTML}</div>` : ''}
     <div class="card-footer">
       <span class="updated">&#8635; ${fmtDate(repo.updated_at)}</span>
-      <a href="${repo.html_url}" target="_blank">View on GitHub &rarr;</a>
+      <div class="card-links">
+        ${demoLink}
+        <a href="${repo.html_url}" target="_blank">GitHub &rarr;</a>
+      </div>
     </div>
   `;
   return card;
@@ -155,7 +168,6 @@ async function fetchProjects() {
   if (!root) return;
 
   try {
-    // The mercy-preview Accept header is required for GitHub to return topics[]
     const res = await fetch(
       `https://api.github.com/users/${GITHUB_USERNAME}/repos?sort=updated&per_page=100`,
       { headers: { 'Accept': 'application/vnd.github.mercy-preview+json' } }
