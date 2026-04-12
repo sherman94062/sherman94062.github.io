@@ -2,6 +2,7 @@ const GITHUB_USERNAME = 'sherman94062';
 
 // ── Pinned at the top as wider featured cards ────────────────────────────────
 const FEATURED = [
+  'jira-mcp-server',
   'mcp-and-agent-development',
   'agentkit',
   'argus',
